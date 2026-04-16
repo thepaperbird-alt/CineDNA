@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@theme {
+  --font-pixel: "Press Start 2P", system-ui, sans-serif;
+  --font-mono: 'Courier New', Courier, monospace;
+  --color-crt-green: #33ff33;
+  --color-crt-dim: #1a5c1a;
+  --color-monitor-bg: #0a0a0a;
+}
+
+@layer base {
+  body {
+    @apply bg-black text-crt-green font-mono overflow-hidden;
+    image-rendering: pixelated;
+    cursor: crosshair;
+  }
+}
+
+@layer components {
+  .crt-frame {
+    @apply relative bg-monitor-bg border-[24px] border-[#1a1a1a] rounded-[40px] flex shadow-[inset_0_0_100px_rgba(0,0,0,0.8),0_0_40px_rgba(51,255,51,0.1)] p-10 overflow-hidden;
+  }
+
+  .scanlines {
+    @apply absolute inset-0 pointer-events-none z-10 opacity-50;
+    background: repeating-linear-gradient(
+      0deg, 
+      rgba(0, 0, 0, 0.1), 
+      rgba(0, 0, 0, 0.1) 1px, 
+      transparent 2px
+    );
+  }
+
+  .vignette {
+    @apply absolute inset-0 pointer-events-none z-11;
+    background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.4) 100%);
+  }
+
+  .panel-left {
+    @apply w-[320px] h-full border-r-4 border-crt-green pr-[30px] flex flex-col;
+  }
+
+  .panel-right {
+    @apply flex-1 pl-[30px] flex flex-col relative;
+  }
+
+  .pixel-input {
+    @apply bg-transparent border-4 border-crt-green w-full p-3 text-crt-green font-mono outline-none text-lg;
+  }
+
+  .pixel-button {
+    @apply bg-crt-green text-monitor-bg border-none p-4 font-bold font-mono text-base uppercase mt-auto mb-5 transition-all active:scale-95;
+  }
+
+  .pixel-button:hover {
+    @apply opacity-90 brightness-110;
+  }
+
+  .graph-area {
+    @apply flex-1 border-4 border-dashed border-crt-dim relative overflow-hidden;
+  }
+
+  .status-bar {
+    @apply text-xs opacity-70 leading-relaxed;
+  }
+
+  /* Legacy classes for compatibility or specific effects */
+  .crt-screen {
+    @apply relative overflow-hidden bg-monitor-bg;
+  }
+
+  .scanline-anim {
+    @apply absolute w-full h-[100px] z-12 opacity-10 pointer-events-none;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(51, 255, 51, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
+    animation: scanline-move 8s linear infinite;
+  }
+}
+
+@keyframes scanline-move {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
