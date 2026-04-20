@@ -17,7 +17,9 @@ import {
   Terminal,
   Cpu,
   Tv,
-  Film
+  Film,
+  History,
+  GitBranch
 } from 'lucide-react';
 import { tree, hierarchy } from 'd3-hierarchy';
 import { cn } from '@/lib/utils';
@@ -89,6 +91,7 @@ export default function App() {
   const [data, setData] = useState<CharacterTreeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>(['SYSTEM READY...', 'AWAITING INPUT...']);
+  const [activeTab, setActiveTab] = useState<'dna' | 'plot'>('dna');
 
   const addLog = (msg: string) => {
     setLogs(prev => [...prev.slice(-5), `> ${msg}`]);
@@ -101,6 +104,7 @@ export default function App() {
     setLoading(true);
     setError(null);
     setData(null);
+    setActiveTab('dna');
     addLog(`SEARCHING: ${title.toUpperCase()}...`);
     
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
@@ -141,13 +145,16 @@ export default function App() {
                 exit={{ width: 0, opacity: 0 }}
                 className="panel-left border-r-4 border-crt-green h-full flex flex-col p-10 bg-monitor-bg z-20"
               >
-                <h1 className="text-xl mb-6 flex flex-col gap-1 border-b-2 border-crt-green pb-2">
+                <h1 className="text-xl mb-2 flex flex-col gap-1 border-b-2 border-crt-green pb-2">
                   <div className="flex items-center gap-2">
                     <Terminal className="w-6 h-6" />
-                    CINE-DNA v1.0
+                    CINE-DNA
                   </div>
                   <div className="text-[8px] opacity-60 tracking-[0.2em]">BY MAHESH RAVI</div>
                 </h1>
+                <p className="text-[10px] leading-relaxed opacity-80 mb-8 uppercase">
+                  Enter a movie or show title to trace its character relationships and plot flow. Switch between the traces in the next screen
+                </p>
                 
                 <form onSubmit={handleSearch} className="flex flex-col gap-6 flex-1">
                   <div className="flex flex-col gap-2">
@@ -192,28 +199,51 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Right Panel: Tree Display (Full Screen when data exists) */}
+          {/* Right Panel: Display */}
           <div className="flex-1 h-full flex flex-col relative bg-monitor-bg">
             <div className="flex justify-between items-center p-6 border-b border-crt-green/30 text-xs uppercase tracking-widest z-10">
               <div className="flex items-center gap-4">
                 {data && (
-                  <button 
-                    onClick={() => setData(null)}
-                    className="text-crt-green hover:underline flex items-center gap-2"
-                  >
-                    [ BACK_TO_INPUT ]
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setData(null)}
+                      className="text-crt-green hover:underline flex items-center gap-2"
+                    >
+                      [ BACK ]
+                    </button>
+                    <div className="flex gap-2 ml-4">
+                      <button 
+                        onClick={() => setActiveTab('dna')}
+                        className={cn(
+                          "px-3 py-1 border-2 transition-all",
+                          activeTab === 'dna' ? "bg-crt-green text-monitor-bg border-crt-green" : "border-crt-green/30 hover:border-crt-green"
+                        )}
+                      >
+                        [01] CHARACTER TRACE
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('plot')}
+                        className={cn(
+                          "px-3 py-1 border-2 transition-all",
+                          activeTab === 'plot' ? "bg-crt-green text-monitor-bg border-crt-green" : "border-crt-green/30 hover:border-crt-green"
+                        )}
+                      >
+                        [02] PLOT TRACE
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <span>RESULT: {title || 'AWAITING_INPUT'}</span>
+                {!data && <span>RESULT: AWAITING_INPUT</span>}
+                {data && <span className="ml-4 opacity-50">SELECTED: {activeTab === 'dna' ? 'CHARACTER_TRACE' : 'PLOT_TRACE'}</span>}
               </div>
               <div className="flex items-center gap-6">
                 {data && (
                   <div className="hidden md:block max-w-md bg-crt-green text-monitor-bg px-3 py-1 text-[10px] leading-tight border-2 border-crt-dim shadow-[4px_4px_0_rgba(0,0,0,0.5)]">
-                    <div className="font-bold border-b border-monitor-bg/30 mb-1">PLOT_SUMMARY.TXT</div>
+                    <div className="font-bold border-b border-monitor-bg/30 mb-1">DATA_STREAM.LOG</div>
                     {data.summary.toUpperCase()}
                   </div>
                 )}
-                <span>NODES: {data ? data.nodes.length.toString().padStart(3, '0') : '000'}</span>
+                <span>NODES: {data ? (activeTab === 'dna' ? data.nodes.length : data.plotPoints.length).toString().padStart(3, '0') : '000'}</span>
               </div>
             </div>
 
@@ -221,11 +251,17 @@ export default function App() {
               <AnimatePresence mode="wait">
                 {data ? (
                   <motion.div
+                    key={activeTab}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     className="h-full w-full"
                   >
-                    <RelationshipTree data={data} />
+                    {activeTab === 'dna' ? (
+                      <RelationshipTree data={data} />
+                    ) : (
+                      <PlotTree data={data} />
+                    )}
                   </motion.div>
                 ) : error ? (
                   <div className="absolute inset-0 flex items-center justify-center text-red-500 text-sm">
@@ -394,7 +430,7 @@ function RelationshipTree({ data }: { data: CharacterTreeData }) {
 
       {/* Controls Overlay */}
       <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-30">
-        <div className="bg-monitor-bg/80 border border-crt-green/30 p-2 text-[8px] flex flex-col gap-1">
+        <div className="bg-monitor-bg/80 border border-crt-green/30 p-2 text-[8px] flex flex-col gap-1 backdrop-blur-sm">
           <span>[ DRAG TO PAN ]</span>
           <span>[ CTRL + SCROLL TO ZOOM ]</span>
           <span>[ ZOOM: {Math.round(scale * 100)}% ]</span>
@@ -403,6 +439,133 @@ function RelationshipTree({ data }: { data: CharacterTreeData }) {
           <button onClick={() => setScale(s => Math.min(s + 0.1, 3))} className="pixel-button p-1 text-[10px] w-8 h-8 flex items-center justify-center">+</button>
           <button onClick={() => setScale(s => Math.max(s - 0.1, 0.2))} className="pixel-button p-1 text-[10px] w-8 h-8 flex items-center justify-center">-</button>
           <button onClick={() => { setScale(1); setPosition({x: 0, y: 0}); }} className="pixel-button p-1 text-[10px] px-2 h-8">RESET</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Plot Visualization ---
+
+function PlotTree({ data }: { data: CharacterTreeData }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
+        });
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  if (dimensions.width === 0) return <div ref={containerRef} className="w-full h-full" />;
+
+  const nodeSpacingY = 250;
+  const totalHeight = Math.max(dimensions.height, data.plotPoints.length * nodeSpacingY + 400);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey) {
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setScale(prev => Math.min(Math.max(prev * delta, 0.2), 3));
+    } else {
+      setPosition(prev => ({
+        x: prev.x - e.deltaX,
+        y: prev.y - e.deltaY
+      }));
+    }
+  };
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="w-full h-full relative cursor-move overflow-hidden"
+      onWheel={handleWheel}
+    >
+      <motion.div 
+        drag
+        dragMomentum={false}
+        style={{ 
+          x: position.x, 
+          y: position.y, 
+          scale,
+          transformOrigin: 'center center'
+        }}
+        className="absolute inset-0 w-full h-full"
+      >
+        <svg 
+          className="absolute inset-0 pointer-events-none"
+          style={{ width: '100%', height: totalHeight }}
+        >
+          {data.plotPoints.slice(0, -1).map((_, i) => {
+            const startY = 150 + i * nodeSpacingY;
+            const endY = 150 + (i + 1) * nodeSpacingY;
+            const x = dimensions.width / 2;
+
+            return (
+              <g key={`plot-link-${i}`}>
+                <motion.line
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.6 }}
+                  x1={x} y1={startY + 60} x2={x} y2={endY - 60}
+                  stroke="var(--color-crt-green)"
+                  strokeWidth="4"
+                  strokeDasharray="8 8"
+                />
+                <circle cx={x} cy={startY + 80} r="4" fill="var(--color-crt-green)" />
+                <circle cx={x} cy={endY - 80} r="4" fill="var(--color-crt-green)" />
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="relative w-full" style={{ height: totalHeight }}>
+          {data.plotPoints.map((point, i) => (
+            <motion.div
+              key={`plot-${i}`}
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left: dimensions.width / 2, top: 150 + i * nodeSpacingY }}
+            >
+              <div className="flex flex-col items-center gap-4 w-[400px]">
+                <div className="px-4 py-1 bg-crt-green text-monitor-bg font-bold transform -skew-x-12 text-sm shadow-[4px_4px_0_var(--color-crt-dim)]">
+                   STEP_0{point.order}: {point.event.toUpperCase()}
+                </div>
+                <div className="w-full bg-monitor-bg/80 border-4 border-crt-green p-4 relative shadow-[8px_8px_0_rgba(0,0,0,0.5)]">
+                  <div className="absolute -top-2 -left-2 w-4 h-4 bg-crt-green" />
+                  <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-crt-green" />
+                  <p className="text-[10px] leading-relaxed text-crt-green text-center">
+                    {point.description.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Controls Overlay */}
+      <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-30">
+        <div className="bg-monitor-bg/80 border border-crt-green/30 p-2 text-[8px] flex flex-col gap-1 backdrop-blur-sm">
+          <span>[ TEMPORAL TRACKING ]</span>
+          <span>[ DRAG TO NAVIGATE ]</span>
+          <span>[ ZOOM: {Math.round(scale * 100)}% ]</span>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setScale(s => Math.min(s + 0.1, 3))} className="pixel-button p-1 text-[10px] w-8 h-8 flex items-center justify-center">+</button>
+          <button onClick={() => setScale(s => Math.max(s - 0.1, 0.2))} className="pixel-button p-1 text-[10px] w-8 h-8 flex items-center justify-center">-</button>
+          <button onClick={() => { setScale(1); setPosition({x: 0, y: 0}); }} className="pixel-button p-1 text-[10px] px-2 h-8 text-[8px]">RE-CENTER</button>
         </div>
       </div>
     </div>
